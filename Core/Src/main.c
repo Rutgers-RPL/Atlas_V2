@@ -381,26 +381,26 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, MULT_S1_Pin|MULT_S2_Pin|MULT_S3_Pin|T1_CS_Pin
+  HAL_GPIO_WritePin(GPIOC, MULT_S2_Pin|MULT_S3_Pin|PT_OUT_Pin|T1_CS_Pin
                           |T2_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_CS_Pin|FLASH_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LED_Pin|LC_CS_Pin|FLASH_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : MULT_S1_Pin MULT_S2_Pin MULT_S3_Pin T1_CS_Pin
+  /*Configure GPIO pins : MULT_S2_Pin MULT_S3_Pin PT_OUT_Pin T1_CS_Pin
                            T2_CS_Pin */
-  GPIO_InitStruct.Pin = MULT_S1_Pin|MULT_S2_Pin|MULT_S3_Pin|T1_CS_Pin
+  GPIO_InitStruct.Pin = MULT_S2_Pin|MULT_S3_Pin|PT_OUT_Pin|T1_CS_Pin
                           |T2_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PYRO_Pin LC_CS_Pin FLASH_CS_Pin */
-  GPIO_InitStruct.Pin = PYRO_Pin|LC_CS_Pin|FLASH_CS_Pin;
+  /*Configure GPIO pins : PYRO_Pin LED_Pin LC_CS_Pin FLASH_CS_Pin */
+  GPIO_InitStruct.Pin = PYRO_Pin|LED_Pin|LC_CS_Pin|FLASH_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
