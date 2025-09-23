@@ -73,14 +73,10 @@ void Error_Handler(void);
 #define LC_SCK_GPIO_Port GPIOA
 #define LC_MISO_Pin GPIO_PIN_6
 #define LC_MISO_GPIO_Port GPIOA
-#define LC_MOSI_Pin GPIO_PIN_7
-#define LC_MOSI_GPIO_Port GPIOA
 #define LED_Pin GPIO_PIN_12
 #define LED_GPIO_Port GPIOB
 #define TEMP_MISO_Pin GPIO_PIN_14
 #define TEMP_MISO_GPIO_Port GPIOB
-#define TEMP_MOSI_Pin GPIO_PIN_15
-#define TEMP_MOSI_GPIO_Port GPIOB
 #define T1_CS_Pin GPIO_PIN_6
 #define T1_CS_GPIO_Port GPIOC
 #define TEMP_SCK_Pin GPIO_PIN_7
