@@ -83,10 +83,6 @@ void Error_Handler(void);
 #define TEMP_SCK_GPIO_Port GPIOC
 #define T2_CS_Pin GPIO_PIN_8
 #define T2_CS_GPIO_Port GPIOC
-#define USB_D_N_Pin GPIO_PIN_11
-#define USB_D_N_GPIO_Port GPIOA
-#define USB_D_P_Pin GPIO_PIN_12
-#define USB_D_P_GPIO_Port GPIOA
 #define FLASH_CS_Pin GPIO_PIN_15
 #define FLASH_CS_GPIO_Port GPIOA
 #define FLASH_SCK_SD_CLK_Pin GPIO_PIN_10
