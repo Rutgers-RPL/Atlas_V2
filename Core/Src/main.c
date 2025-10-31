@@ -27,6 +27,7 @@
 #include "stm32f4xx_hal.h"
 #include "hx711.h"
 #include "hx711Config.h"
+#include "pressure.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,7 +55,6 @@ SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
 
 /* USER CODE BEGIN PV */
-volatile uint16_t g_pt_raw[6];  // raw ADC results
 //load cell
 hx711_t g_loadcell;
 float g_loadcell_weight = 0.0f;
@@ -67,7 +67,6 @@ static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-static void PT_ScanAll(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -108,18 +107,24 @@ int main(void)
   MX_SPI3_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+
+  //initializing pressure transducers
+
+  PT_Init(&hadc1);
+
+
   //Initializing HX711
 
 
-//  hx711_init(&g_loadcell,
-//             LC_SCK_GPIO_Port,  LC_SCK_Pin,   // PA5 clock out
-//             LC_MISO_GPIO_Port, LC_MISO_Pin); // PA6 data in
+  hx711_init(&g_loadcell,
+             LC_SCK_GPIO_Port,  LC_SCK_Pin,   // PA5 clock out
+             LC_MISO_GPIO_Port, LC_MISO_Pin); // PA6 data in
 
 
   // Perform initial tare (zero load)
 
 
-//  hx711_tare(&g_loadcell, 10);  // average 10 samples
+  hx711_tare(&g_loadcell, 10);  // average 10 samples
 
 
   /* USER CODE END 2 */
@@ -129,7 +134,7 @@ int main(void)
  while (1)
  {
 	 	PT_ScanAll(); // scan all pressure transducers
-//	    g_loadcell_weight = hx711_weight(&g_loadcell, 5); // average of 5 samples from load cell
+	    g_loadcell_weight = hx711_weight(&g_loadcell, 5); // average of 5 samples from load cell
 	    HAL_GPIO_TogglePin(GPIOB, LED_Pin);
 	    HAL_Delay(1000);
     /* USER CODE END WHILE */
@@ -373,69 +378,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-//TFA - Check these
-// --- pressure transducer helpers ---
-#define MUX_S1_GPIO  GPIOC
-#define MUX_S1_PIN   GPIO_PIN_0
-#define MUX_S2_GPIO  GPIOC
-#define MUX_S2_PIN   GPIO_PIN_1
-#define MUX_S3_GPIO  GPIOC
-#define MUX_S3_PIN   GPIO_PIN_2
-#define PT_ADC_CH    ADC_CHANNEL_13   // PC3
-static inline void PT_SetMux(uint8_t code)
-{
-    // S1
-    if (code & 0x1)
-    {
-        HAL_GPIO_WritePin(MUX_S1_GPIO, MUX_S1_PIN, GPIO_PIN_SET);
-    }
-    else
-    {
-        HAL_GPIO_WritePin(MUX_S1_GPIO, MUX_S1_PIN, GPIO_PIN_RESET);
-    }
 
-    // S2
-    if (code & 0x2)
-    {
-        HAL_GPIO_WritePin(MUX_S2_GPIO, MUX_S2_PIN, GPIO_PIN_SET);
-    }
-    else
-    {
-        HAL_GPIO_WritePin(MUX_S2_GPIO, MUX_S2_PIN, GPIO_PIN_RESET);
-    }
-
-    // S3
-    if (code & 0x4)
-    {
-        HAL_GPIO_WritePin(MUX_S3_GPIO, MUX_S3_PIN, GPIO_PIN_SET);
-    }
-    else
-    {
-        HAL_GPIO_WritePin(MUX_S3_GPIO, MUX_S3_PIN, GPIO_PIN_RESET);
-    }
-}
-static inline void PT_SettleDelay(void)
-{
- for (volatile int i = 0; i < 400; ++i) __NOP(); // few µs
-}
-static uint16_t PT_ReadADC(void)
-{
- HAL_ADC_Start(&hadc1);
- HAL_ADC_PollForConversion(&hadc1, 10);
- uint16_t val = (uint16_t)HAL_ADC_GetValue(&hadc1);
- HAL_ADC_Stop(&hadc1);
- return val;
-}
-static void PT_ScanAll(void)
-{
- const uint8_t codes[6] = {0b000, 0b001, 0b010, 0b011, 0b100, 0b101};
- for (int i = 0; i < 6; i++) {
-   PT_SetMux(codes[i]);
-   PT_SettleDelay();
-   g_pt_raw[i] = PT_ReadADC();  // raw 0–4095
-   int test = 1;
- }
-}
 /* USER CODE END 4 */
 
 /**
