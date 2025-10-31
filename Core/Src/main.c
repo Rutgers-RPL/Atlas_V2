@@ -1,67 +1,73 @@
 /* USER CODE BEGIN Header */
 /**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * Copyright (c) 2025 STMicroelectronics.
-  * All rights reserved.
-  *
-  * This software is licensed under terms that can be found in the LICENSE file
-  * in the root directory of this software component.
-  * If no LICENSE file comes with this software, it is provided AS-IS.
-  *
-  ******************************************************************************
-  */
+ ******************************************************************************
+ * @file           : main.c
+ * @brief          : Main program body
+ ******************************************************************************
+ * @attention
+ *
+ * Copyright (c) 2025 STMicroelectronics.
+ * All rights reserved.
+ *
+ * This software is licensed under terms that can be found in the LICENSE file
+ * in the root directory of this software component.
+ * If no LICENSE file comes with this software, it is provided AS-IS.
+ *
+ *
+ * Atlas V2: engineered by the Avionics team of the Rutgers Rocket Propulsion
+ * Lab. Code written by Tyler Abbassi tfa21. Contact if any questions arise.
+ ******************************************************************************
+ */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stm32f4xx_hal.h"
+#include "hx711.h"
+#include "hx711Config.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+// --- HX711 (load cell amplifier) ---
+#define HX711_CLK_GPIO_Port   GPIOA
+#define HX711_CLK_Pin         GPIO_PIN_5   // LC_SCK
+#define HX711_DATA_GPIO_Port  GPIOA
+#define HX711_DATA_Pin        GPIO_PIN_6   // LC_MISO
+// LC_CS (PA4) is unused; configured as output low by CubeMX
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-SPI_HandleTypeDef hspi1;
 SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
 
-HCD_HandleTypeDef hhcd_USB_OTG_FS;
-
 /* USER CODE BEGIN PV */
-
+volatile uint16_t g_pt_raw[6];  // raw ADC results
+//load cell
+hx711_t g_loadcell;
+float g_loadcell_weight = 0.0f;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_SPI1_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
-static void MX_USB_OTG_FS_HCD_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
-
+static void PT_ScanAll(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -77,6 +83,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+	SCB->VTOR = 0x08000000; //when i wrote this, only I and god knew why it worked. now it is only god. -TFA
+
 
   /* USER CODE END 1 */
 
@@ -86,35 +94,48 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
   /* USER CODE END Init */
 
   /* Configure the system clock */
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_SPI1_Init();
   MX_SPI2_Init();
   MX_SPI3_Init();
-  MX_USB_OTG_FS_HCD_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  //Initializing HX711
+
+
+//  hx711_init(&g_loadcell,
+//             LC_SCK_GPIO_Port,  LC_SCK_Pin,   // PA5 clock out
+//             LC_MISO_GPIO_Port, LC_MISO_Pin); // PA6 data in
+
+
+  // Perform initial tare (zero load)
+
+
+//  hx711_tare(&g_loadcell, 10);  // average 10 samples
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  while (1)
-  {
+ while (1)
+ {
+	 	PT_ScanAll(); // scan all pressure transducers
+//	    g_loadcell_weight = hx711_weight(&g_loadcell, 5); // average of 5 samples from load cell
+	    HAL_GPIO_TogglePin(GPIOB, LED_Pin);
+	    HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-  }
+ }
   /* USER CODE END 3 */
 }
 
@@ -138,12 +159,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-  RCC_OscInitStruct.PLL.PLLM = 16;
-  RCC_OscInitStruct.PLL.PLLN = 192;
-  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
-  RCC_OscInitStruct.PLL.PLLQ = 4;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -173,13 +189,11 @@ static void MX_ADC1_Init(void)
 {
 
   /* USER CODE BEGIN ADC1_Init 0 */
-
   /* USER CODE END ADC1_Init 0 */
 
   ADC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN ADC1_Init 1 */
-
   /* USER CODE END ADC1_Init 1 */
 
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
@@ -203,7 +217,7 @@ static void MX_ADC1_Init(void)
 
   /** Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time.
   */
-  sConfig.Channel = ADC_CHANNEL_10;
+  sConfig.Channel = ADC_CHANNEL_13;
   sConfig.Rank = 1;
   sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
@@ -211,45 +225,7 @@ static void MX_ADC1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN ADC1_Init 2 */
-
   /* USER CODE END ADC1_Init 2 */
-
-}
-
-/**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
-{
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_SLAVE;
-  hspi1.Init.Direction = SPI_DIRECTION_1LINE;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_SOFT;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
-
-  /* USER CODE END SPI1_Init 2 */
 
 }
 
@@ -262,11 +238,9 @@ static void MX_SPI2_Init(void)
 {
 
   /* USER CODE BEGIN SPI2_Init 0 */
-
   /* USER CODE END SPI2_Init 0 */
 
   /* USER CODE BEGIN SPI2_Init 1 */
-
   /* USER CODE END SPI2_Init 1 */
   /* SPI2 parameter configuration*/
   hspi2.Instance = SPI2;
@@ -285,7 +259,6 @@ static void MX_SPI2_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN SPI2_Init 2 */
-
   /* USER CODE END SPI2_Init 2 */
 
 }
@@ -299,11 +272,9 @@ static void MX_SPI3_Init(void)
 {
 
   /* USER CODE BEGIN SPI3_Init 0 */
-
   /* USER CODE END SPI3_Init 0 */
 
   /* USER CODE BEGIN SPI3_Init 1 */
-
   /* USER CODE END SPI3_Init 1 */
   /* SPI3 parameter configuration*/
   hspi3.Instance = SPI3;
@@ -323,39 +294,7 @@ static void MX_SPI3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN SPI3_Init 2 */
-
   /* USER CODE END SPI3_Init 2 */
-
-}
-
-/**
-  * @brief USB_OTG_FS Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USB_OTG_FS_HCD_Init(void)
-{
-
-  /* USER CODE BEGIN USB_OTG_FS_Init 0 */
-
-  /* USER CODE END USB_OTG_FS_Init 0 */
-
-  /* USER CODE BEGIN USB_OTG_FS_Init 1 */
-
-  /* USER CODE END USB_OTG_FS_Init 1 */
-  hhcd_USB_OTG_FS.Instance = USB_OTG_FS;
-  hhcd_USB_OTG_FS.Init.Host_channels = 8;
-  hhcd_USB_OTG_FS.Init.speed = HCD_SPEED_FULL;
-  hhcd_USB_OTG_FS.Init.dma_enable = DISABLE;
-  hhcd_USB_OTG_FS.Init.phy_itface = HCD_PHY_EMBEDDED;
-  hhcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
-  if (HAL_HCD_Init(&hhcd_USB_OTG_FS) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USB_OTG_FS_Init 2 */
-
-  /* USER CODE END USB_OTG_FS_Init 2 */
 
 }
 
@@ -368,7 +307,6 @@ static void MX_GPIO_Init(void)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
   /* USER CODE BEGIN MX_GPIO_Init_1 */
-
   /* USER CODE END MX_GPIO_Init_1 */
 
   /* GPIO Ports Clock Enable */
@@ -379,11 +317,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, MULT_S2_Pin|MULT_S3_Pin|PT_OUT_Pin|T1_CS_Pin
-                          |T2_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, MULT_S3_Pin|T1_CS_Pin|T2_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_CS_Pin|FLASH_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_CS_Pin|LC_SCK_Pin|FLASH_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -391,21 +328,31 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : MULT_S2_Pin MULT_S3_Pin PT_OUT_Pin T1_CS_Pin
-                           T2_CS_Pin */
-  GPIO_InitStruct.Pin = MULT_S2_Pin|MULT_S3_Pin|PT_OUT_Pin|T1_CS_Pin
-                          |T2_CS_Pin;
+  /*Configure GPIO pins : MULT_S1_Pin MULT_S2_Pin */
+  GPIO_InitStruct.Pin = MULT_S1_Pin|MULT_S2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : MULT_S3_Pin T1_CS_Pin T2_CS_Pin */
+  GPIO_InitStruct.Pin = MULT_S3_Pin|T1_CS_Pin|T2_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PYRO_Pin LC_CS_Pin FLASH_CS_Pin */
-  GPIO_InitStruct.Pin = PYRO_Pin|LC_CS_Pin|FLASH_CS_Pin;
+  /*Configure GPIO pins : PYRO_Pin LC_CS_Pin LC_SCK_Pin FLASH_CS_Pin */
+  GPIO_InitStruct.Pin = PYRO_Pin|LC_CS_Pin|LC_SCK_Pin|FLASH_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LC_MISO_Pin */
+  GPIO_InitStruct.Pin = LC_MISO_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(LC_MISO_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -422,12 +369,73 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
+//TFA - Check these
+// --- pressure transducer helpers ---
+#define MUX_S1_GPIO  GPIOC
+#define MUX_S1_PIN   GPIO_PIN_0
+#define MUX_S2_GPIO  GPIOC
+#define MUX_S2_PIN   GPIO_PIN_1
+#define MUX_S3_GPIO  GPIOC
+#define MUX_S3_PIN   GPIO_PIN_2
+#define PT_ADC_CH    ADC_CHANNEL_13   // PC3
+static inline void PT_SetMux(uint8_t code)
+{
+    // S1
+    if (code & 0x1)
+    {
+        HAL_GPIO_WritePin(MUX_S1_GPIO, MUX_S1_PIN, GPIO_PIN_SET);
+    }
+    else
+    {
+        HAL_GPIO_WritePin(MUX_S1_GPIO, MUX_S1_PIN, GPIO_PIN_RESET);
+    }
 
+    // S2
+    if (code & 0x2)
+    {
+        HAL_GPIO_WritePin(MUX_S2_GPIO, MUX_S2_PIN, GPIO_PIN_SET);
+    }
+    else
+    {
+        HAL_GPIO_WritePin(MUX_S2_GPIO, MUX_S2_PIN, GPIO_PIN_RESET);
+    }
+
+    // S3
+    if (code & 0x4)
+    {
+        HAL_GPIO_WritePin(MUX_S3_GPIO, MUX_S3_PIN, GPIO_PIN_SET);
+    }
+    else
+    {
+        HAL_GPIO_WritePin(MUX_S3_GPIO, MUX_S3_PIN, GPIO_PIN_RESET);
+    }
+}
+static inline void PT_SettleDelay(void)
+{
+ for (volatile int i = 0; i < 400; ++i) __NOP(); // few µs
+}
+static uint16_t PT_ReadADC(void)
+{
+ HAL_ADC_Start(&hadc1);
+ HAL_ADC_PollForConversion(&hadc1, 10);
+ uint16_t val = (uint16_t)HAL_ADC_GetValue(&hadc1);
+ HAL_ADC_Stop(&hadc1);
+ return val;
+}
+static void PT_ScanAll(void)
+{
+ const uint8_t codes[6] = {0b000, 0b001, 0b010, 0b011, 0b100, 0b101};
+ for (int i = 0; i < 6; i++) {
+   PT_SetMux(codes[i]);
+   PT_SettleDelay();
+   g_pt_raw[i] = PT_ReadADC();  // raw 0–4095
+   int test = 1;
+ }
+}
 /* USER CODE END 4 */
 
 /**
@@ -437,11 +445,11 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+ /* User can add his own implementation to report the HAL error return state */
+ __disable_irq();
+ while (1)
+ {
+ }
   /* USER CODE END Error_Handler_Debug */
 }
 #ifdef USE_FULL_ASSERT
@@ -455,8 +463,8 @@ void Error_Handler(void)
 void assert_failed(uint8_t *file, uint32_t line)
 {
   /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+ /* User can add his own implementation to report the file name and line number,
+    ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
