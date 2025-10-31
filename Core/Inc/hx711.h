@@ -55,6 +55,19 @@ float       hx711_weight(hx711_t *hx711, uint16_t sample);
 void        hx711_power_down(hx711_t *hx711);
 void        hx711_power_up(hx711_t *hx711);
 
+//below is tfa code
+
+// Debug calibration globals (inspect these in STM32CubeIDE watch window)
+extern long hx711_zero_reading;
+extern long hx711_loaded_reading;
+extern long hx711_delta;
+extern float hx711_scale_factor;
+extern float hx711_known_weight;
+
+// Debug calibration helper
+void hx711_calibrate_debug(hx711_t *hx711, float known_weight);
+
+
 //####################################################################################################################
 
 #ifdef __cplusplus

@@ -117,14 +117,16 @@ int main(void)
 
 
   hx711_init(&g_loadcell,
-             LC_SCK_GPIO_Port,  LC_SCK_Pin,   // PA5 clock out
-             LC_MISO_GPIO_Port, LC_MISO_Pin); // PA6 data in
+             LC_SCK_GPIO_Port,  LC_SCK_Pin,
+             LC_MISO_GPIO_Port, LC_MISO_Pin);
 
+  hx711_tare(&g_loadcell, 10);
 
-  // Perform initial tare (zero load)
+  // Run debug calibration (watch variables in debugger)
+  //hx711_calibrate_debug(&g_loadcell, 1000.0f);  // 1000 g known weight <- uncomment when calibration time
 
-
-  hx711_tare(&g_loadcell, 10);  // average 10 samples
+  // Later (when calibrated permanently)
+  hx711_coef_set(&g_loadcell, 10.0f);  // replace with your found scale
 
 
   /* USER CODE END 2 */

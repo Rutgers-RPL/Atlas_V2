@@ -158,3 +158,33 @@ void hx711_power_up(hx711_t *hx711)
   HAL_GPIO_WritePin(hx711->clk_gpio, hx711->clk_pin, GPIO_PIN_RESET);
 }
 //#############################################################################################
+//#############################################################################################
+// Debug-only calibration helper — stores results in globals for debugger inspection
+//#############################################################################################
+long hx711_zero_reading = 0;
+long hx711_loaded_reading = 0;
+long hx711_delta = 0;
+float hx711_scale_factor = 0.0f;
+float hx711_known_weight = 0.0f;
+
+void hx711_calibrate_debug(hx711_t *hx711, float known_weight)
+{
+  hx711_known_weight = known_weight;
+
+  // Step 1: Tare (zero load)
+  hx711_tare(hx711, 10);
+  hx711_zero_reading = hx711_value(hx711);
+
+  // Step 2: Delay to allow placing known weight
+  HAL_Delay(5000);  // 5 seconds to put the calibration mass
+
+  // Step 3: Read raw data with known weight
+  hx711_loaded_reading = hx711_value(hx711);
+
+  // Step 4: Compute scale factor
+  hx711_delta = hx711_loaded_reading - hx711_zero_reading;
+  hx711_scale_factor = (float)hx711_delta / known_weight;
+
+  // Step 5: Apply new calibration coefficient
+  hx711_coef_set(hx711, hx711_scale_factor);
+}
