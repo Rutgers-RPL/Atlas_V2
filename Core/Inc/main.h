@@ -67,8 +67,6 @@ void Error_Handler(void);
 #define PT_OUT_GPIO_Port GPIOC
 #define PYRO_Pin GPIO_PIN_2
 #define PYRO_GPIO_Port GPIOA
-#define LC_CS_Pin GPIO_PIN_4
-#define LC_CS_GPIO_Port GPIOA
 #define LC_SCK_Pin GPIO_PIN_5
 #define LC_SCK_GPIO_Port GPIOA
 #define LC_MISO_Pin GPIO_PIN_6
@@ -95,7 +93,7 @@ void Error_Handler(void);
 #define SD_CS_GPIO_Port GPIOD
 
 /* USER CODE BEGIN Private defines */
-
+#define SD_SPI_HANDLE hspi3
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

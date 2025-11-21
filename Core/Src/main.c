@@ -21,6 +21,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -28,6 +29,13 @@
 #include "hx711.h"
 #include "hx711Config.h"
 #include "pressure.h"
+#include "fatfs.h"
+#include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stm32f4xx_hal_gpio.h>
+#include "diskio.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -58,6 +66,19 @@ SPI_HandleTypeDef hspi3;
 //load cell
 hx711_t g_loadcell;
 float g_loadcell_weight = 0.0f;
+
+typedef struct {
+    float pt_voltage[PT_COUNT];
+    float pt_psi[PT_COUNT];
+    uint16_t pt_raw[PT_COUNT];
+    float loadcell_weight;
+} DebugData_t;
+
+DebugData_t dbg;   // global instance
+
+
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -67,11 +88,13 @@ static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
+
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 
 /**
@@ -106,9 +129,99 @@ int main(void)
   MX_SPI2_Init();
   MX_SPI3_Init();
   MX_ADC1_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
+
+  uint8_t txBuf[64];
+  uint8_t rxBuf[64];
+
+  for (int i = 0; i < 64; i++)
+  {
+      txBuf[i] = 0xA5;     // test pattern for MOSI
+      rxBuf[i] = 0x00;     // clear RX buffer
+  }
+
+  // --- Test Loop ---
+  for (int i = 0; i < 200; i++)
+  {
+      HAL_SPI_TransmitReceive(&hspi3, &txBuf[i], &rxBuf[i], 1, 100);
+
+      // <-- SET A BREAKPOINT ON THIS LINE
+      __NOP();
+  }
+
+
+  HAL_Delay(1000); //a short delay is important to let the SD card settle
+
+
+
+  // FatFs structures
+  FATFS FatFs;
+  FIL fil;
+  FRESULT fres;
+
+  // result tracking
+  DWORD free_clusters, free_sectors, total_sectors;
+  FATFS* getFreeFs = NULL;
+
+  BYTE readBuf[30] = {0};
+  TCHAR* rres = NULL;
+  UINT bytesWrote = 0;
+
+  // 1. Mount SD card
+  fres = f_mount(&FatFs, "", 1);
+  // ---> put breakpoint here; inspect `fres`
+int test2 = 3;
+
+//  /* 2. Get free space info */
+//  fres = f_getfree("", &free_clusters, &getFreeFs);
+//  // ---> breakpoint — inspect fres, free_clusters, getFreeFs, getFreeFs->n_fatent, ->csize
+//
+//  // Compute stats (from Chan’s docs)
+//  total_sectors = (getFreeFs->n_fatent - 2U) * getFreeFs->csize;
+//  free_sectors  =  free_clusters            * getFreeFs->csize;
+//  // ---> breakpoint — inspect total_sectors, free_sectors
+//
+//
+//  /* 3. Open an existing file */
+//  fres = f_open(&fil, "test.txt", FA_READ);
+//  // ---> breakpoint — inspect fres
+//
+//  /* 4. Read */
+//  rres = f_gets((TCHAR*)readBuf, sizeof(readBuf), &fil);
+//  // ---> breakpoint — inspect readBuf, rres
+//
+//  f_close(&fil);
+//  // ---> breakpoint
+//
+//
+//  /* 5. Create/write file */
+//  fres = f_open(&fil, "write.txt",
+//                FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
+//  // ---> breakpoint — inspect fres
+//
+//  strncpy((char*)readBuf, "a new file is made!", 19);
+//
+//  fres = f_write(&fil, readBuf, 19, &bytesWrote);
+//  // ---> breakpoint — inspect fres, bytesWrote, readBuf content
+//
+//  f_close(&fil);
+//  // ---> breakpoint
+//
+//
+//  // 6. Unmount
+//  f_mount(NULL, "", 0);
+  // ---> final breakpoint
+int test = 1;
+
+
+
+
   //initializing pressure transducers
+
+
+  //HAL_SPI_TransmitReceive NOT WORKING, suspect SPI line is fucked on MISO. Want to use oscilloscope
 
   PT_Init(&hadc1);
 
@@ -122,27 +235,33 @@ int main(void)
 
   hx711_tare(&g_loadcell, 10);
 
-  // Run debug calibration (watch variables in debugger)
-  //hx711_calibrate_debug(&g_loadcell, 1000.0f);  // 1000 g known weight <- uncomment when calibration time
-
-  // Later (when calibrated permanently)
-  hx711_coef_set(&g_loadcell, 10.0f);  // replace with your found scale
-
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
- while (1)
- {
-	 	PT_ScanAll(); // scan all pressure transducers
-	    g_loadcell_weight = hx711_weight(&g_loadcell, 5); // average of 5 samples from load cell
-	    HAL_GPIO_TogglePin(GPIOB, LED_Pin);
-	    HAL_Delay(1000);
+  while (1)
+  {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
- }
+	  // --- Pressure transducers ---
+	        PT_ScanAll();
+
+	        for (int i = 0; i < PT_COUNT; i++)
+	        {
+	            dbg.pt_raw[i]     = g_pt_raw[i];
+	            dbg.pt_voltage[i] = PT_GetVoltage(i);
+	            dbg.pt_psi[i]     = PT_GetPressure(i);
+	        }
+
+	        // --- Load cell ---
+	        dbg.loadcell_weight = hx711_weight(&g_loadcell, 5);
+
+	        // --- Blink LED to show loop is running ---
+	        HAL_GPIO_TogglePin(GPIOB, LED_Pin);
+	        HAL_Delay(1000);
+  }
   /* USER CODE END 3 */
 }
 
@@ -251,12 +370,13 @@ static void MX_SPI2_Init(void)
   /* USER CODE END SPI2_Init 1 */
   /* SPI2 parameter configuration*/
   hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_SLAVE;
-  hspi2.Init.Direction = SPI_DIRECTION_1LINE;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
   hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -291,7 +411,7 @@ static void MX_SPI3_Init(void)
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -301,6 +421,7 @@ static void MX_SPI3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN SPI3_Init 2 */
+
   /* USER CODE END SPI3_Init 2 */
 
 }
@@ -327,13 +448,16 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, MULT_S3_Pin|T1_CS_Pin|T2_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_CS_Pin|LC_SCK_Pin|FLASH_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_SCK_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(FLASH_CS_GPIO_Port, FLASH_CS_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : MULT_S1_Pin MULT_S2_Pin */
   GPIO_InitStruct.Pin = MULT_S1_Pin|MULT_S2_Pin;
@@ -348,8 +472,8 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PYRO_Pin LC_CS_Pin LC_SCK_Pin FLASH_CS_Pin */
-  GPIO_InitStruct.Pin = PYRO_Pin|LC_CS_Pin|LC_SCK_Pin|FLASH_CS_Pin;
+  /*Configure GPIO pins : PYRO_Pin LC_SCK_Pin */
+  GPIO_InitStruct.Pin = PYRO_Pin|LC_SCK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -368,11 +492,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : FLASH_CS_Pin */
+  GPIO_InitStruct.Pin = FLASH_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(FLASH_CS_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : SD_CS_Pin */
   GPIO_InitStruct.Pin = SD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -380,6 +511,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 
 /* USER CODE END 4 */
 
