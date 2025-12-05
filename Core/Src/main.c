@@ -21,7 +21,6 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -29,12 +28,11 @@
 #include "hx711.h"
 #include "hx711Config.h"
 #include "pressure.h"
-#include "fatfs.h"
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stm32f4xx_hal_gpio.h>
-#include "diskio.h"
+//#include "usbd_cdc_if.h"
 
 /* USER CODE END Includes */
 
@@ -62,19 +60,37 @@ ADC_HandleTypeDef hadc1;
 SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
 
+PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
 /* USER CODE BEGIN PV */
-//load cell
+// --- Debug globals for CubeMonitor ---
+// Voltage readings (float)
+volatile float dbg_pt_voltage_0;
+volatile float dbg_pt_voltage_1;
+volatile float dbg_pt_voltage_2;
+volatile float dbg_pt_voltage_3;
+volatile float dbg_pt_voltage_4;
+volatile float dbg_pt_voltage_5;
+
+// Pressure readings (float)
+volatile float dbg_pt_psi_0;
+volatile float dbg_pt_psi_1;
+volatile float dbg_pt_psi_2;
+volatile float dbg_pt_psi_3;
+volatile float dbg_pt_psi_4;
+volatile float dbg_pt_psi_5;
+
+// Raw ADC values (uint16)
+volatile uint16_t dbg_pt_raw_0;
+volatile uint16_t dbg_pt_raw_1;
+volatile uint16_t dbg_pt_raw_2;
+volatile uint16_t dbg_pt_raw_3;
+volatile uint16_t dbg_pt_raw_4;
+volatile uint16_t dbg_pt_raw_5;
+
+// Load cell weight (float)
+volatile float dbg_loadcell_weight;
 hx711_t g_loadcell;
-float g_loadcell_weight = 0.0f;
-
-typedef struct {
-    float pt_voltage[PT_COUNT];
-    float pt_psi[PT_COUNT];
-    uint16_t pt_raw[PT_COUNT];
-    float loadcell_weight;
-} DebugData_t;
-
-DebugData_t dbg;   // global instance
 
 
 
@@ -87,6 +103,7 @@ static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USB_OTG_FS_PCD_Init(void);
 /* USER CODE BEGIN PFP */
 
 
@@ -105,7 +122,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	SCB->VTOR = 0x08000000; //when i wrote this, only I and god knew why it worked. now it is only god. -TFA
+
 
 
   /* USER CODE END 1 */
@@ -129,99 +146,13 @@ int main(void)
   MX_SPI2_Init();
   MX_SPI3_Init();
   MX_ADC1_Init();
-  MX_FATFS_Init();
+  MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
 
 
-  uint8_t txBuf[64];
-  uint8_t rxBuf[64];
-
-  for (int i = 0; i < 64; i++)
-  {
-      txBuf[i] = 0xA5;     // test pattern for MOSI
-      rxBuf[i] = 0x00;     // clear RX buffer
-  }
-
-  // --- Test Loop ---
-  for (int i = 0; i < 200; i++)
-  {
-      HAL_SPI_TransmitReceive(&hspi3, &txBuf[i], &rxBuf[i], 1, 100);
-
-      // <-- SET A BREAKPOINT ON THIS LINE
-      __NOP();
-  }
-
-
-  HAL_Delay(1000); //a short delay is important to let the SD card settle
 
 
 
-  // FatFs structures
-  FATFS FatFs;
-  FIL fil;
-  FRESULT fres;
-
-  // result tracking
-  DWORD free_clusters, free_sectors, total_sectors;
-  FATFS* getFreeFs = NULL;
-
-  BYTE readBuf[30] = {0};
-  TCHAR* rres = NULL;
-  UINT bytesWrote = 0;
-
-  // 1. Mount SD card
-  fres = f_mount(&FatFs, "", 1);
-  // ---> put breakpoint here; inspect `fres`
-int test2 = 3;
-
-//  /* 2. Get free space info */
-//  fres = f_getfree("", &free_clusters, &getFreeFs);
-//  // ---> breakpoint — inspect fres, free_clusters, getFreeFs, getFreeFs->n_fatent, ->csize
-//
-//  // Compute stats (from Chan’s docs)
-//  total_sectors = (getFreeFs->n_fatent - 2U) * getFreeFs->csize;
-//  free_sectors  =  free_clusters            * getFreeFs->csize;
-//  // ---> breakpoint — inspect total_sectors, free_sectors
-//
-//
-//  /* 3. Open an existing file */
-//  fres = f_open(&fil, "test.txt", FA_READ);
-//  // ---> breakpoint — inspect fres
-//
-//  /* 4. Read */
-//  rres = f_gets((TCHAR*)readBuf, sizeof(readBuf), &fil);
-//  // ---> breakpoint — inspect readBuf, rres
-//
-//  f_close(&fil);
-//  // ---> breakpoint
-//
-//
-//  /* 5. Create/write file */
-//  fres = f_open(&fil, "write.txt",
-//                FA_WRITE | FA_OPEN_ALWAYS | FA_CREATE_ALWAYS);
-//  // ---> breakpoint — inspect fres
-//
-//  strncpy((char*)readBuf, "a new file is made!", 19);
-//
-//  fres = f_write(&fil, readBuf, 19, &bytesWrote);
-//  // ---> breakpoint — inspect fres, bytesWrote, readBuf content
-//
-//  f_close(&fil);
-//  // ---> breakpoint
-//
-//
-//  // 6. Unmount
-//  f_mount(NULL, "", 0);
-  // ---> final breakpoint
-int test = 1;
-
-
-
-
-  //initializing pressure transducers
-
-
-  //HAL_SPI_TransmitReceive NOT WORKING, suspect SPI line is fucked on MISO. Want to use oscilloscope
 
   PT_Init(&hadc1);
 
@@ -235,32 +166,52 @@ int test = 1;
 
   hx711_tare(&g_loadcell, 10);
 
+  hx711_coef_set(&g_loadcell, 1.7625f);
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+
   while (1)
   {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	  // --- Pressure transducers ---
-	        PT_ScanAll();
+	      // --- Pressure transducers ---
+	      PT_ScanAll();
 
-	        for (int i = 0; i < PT_COUNT; i++)
-	        {
-	            dbg.pt_raw[i]     = g_pt_raw[i];
-	            dbg.pt_voltage[i] = PT_GetVoltage(i);
-	            dbg.pt_psi[i]     = PT_GetPressure(i);
-	        }
+	      // Raw ADC values
+	      dbg_pt_raw_0 = g_pt_raw[0];
+	      dbg_pt_raw_1 = g_pt_raw[1];
+	      dbg_pt_raw_2 = g_pt_raw[2];
+	      dbg_pt_raw_3 = g_pt_raw[3];
+	      dbg_pt_raw_4 = g_pt_raw[4];
+	      dbg_pt_raw_5 = g_pt_raw[5];
 
-	        // --- Load cell ---
-	        dbg.loadcell_weight = hx711_weight(&g_loadcell, 5);
+	      // Voltages
+	      dbg_pt_voltage_0 = PT_GetVoltage(0);
+	      dbg_pt_voltage_1 = PT_GetVoltage(1);
+	      dbg_pt_voltage_2 = PT_GetVoltage(2);
+	      dbg_pt_voltage_3 = PT_GetVoltage(3);
+	      dbg_pt_voltage_4 = PT_GetVoltage(4);
+	      dbg_pt_voltage_5 = PT_GetVoltage(5);
 
-	        // --- Blink LED to show loop is running ---
-	        HAL_GPIO_TogglePin(GPIOB, LED_Pin);
-	        HAL_Delay(1000);
+	      // Pressures
+	      dbg_pt_psi_0 = PT_GetPressure(0);
+	      dbg_pt_psi_1 = PT_GetPressure(1);
+	      dbg_pt_psi_2 = PT_GetPressure(2);
+	      dbg_pt_psi_3 = PT_GetPressure(3);
+	      dbg_pt_psi_4 = PT_GetPressure(4);
+	      dbg_pt_psi_5 = PT_GetPressure(5);
+
+	      // --- Load cell ---
+	      dbg_loadcell_weight = hx711_weight(&g_loadcell, 5);
+	      // --- Blink LED to show loop is running ---
+	      HAL_GPIO_TogglePin(GPIOB, LED_Pin);
+	      HAL_Delay(10);
+
   }
   /* USER CODE END 3 */
 }
@@ -282,10 +233,14 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 12;
+  RCC_OscInitStruct.PLL.PLLN = 72;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 3;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -295,9 +250,9 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
@@ -427,6 +382,41 @@ static void MX_SPI3_Init(void)
 }
 
 /**
+  * @brief USB_OTG_FS Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USB_OTG_FS_PCD_Init(void)
+{
+
+  /* USER CODE BEGIN USB_OTG_FS_Init 0 */
+
+  /* USER CODE END USB_OTG_FS_Init 0 */
+
+  /* USER CODE BEGIN USB_OTG_FS_Init 1 */
+
+  /* USER CODE END USB_OTG_FS_Init 1 */
+  hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
+  hpcd_USB_OTG_FS.Init.dev_endpoints = 4;
+  hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
+  hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+  hpcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.vbus_sensing_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
+  if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USB_OTG_FS_Init 2 */
+
+  /* USER CODE END USB_OTG_FS_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -448,7 +438,7 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, MULT_S3_Pin|T1_CS_Pin|T2_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_SCK_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_MISO_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
@@ -472,18 +462,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PYRO_Pin LC_SCK_Pin */
-  GPIO_InitStruct.Pin = PYRO_Pin|LC_SCK_Pin;
+  /*Configure GPIO pins : PYRO_Pin LC_MISO_Pin */
+  GPIO_InitStruct.Pin = PYRO_Pin|LC_MISO_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LC_MISO_Pin */
-  GPIO_InitStruct.Pin = LC_MISO_Pin;
+  /*Configure GPIO pin : LC_SCK_Pin */
+  GPIO_InitStruct.Pin = LC_SCK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(LC_MISO_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(LC_SCK_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -511,6 +501,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
 
 
 /* USER CODE END 4 */

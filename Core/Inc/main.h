@@ -67,10 +67,10 @@ void Error_Handler(void);
 #define PT_OUT_GPIO_Port GPIOC
 #define PYRO_Pin GPIO_PIN_2
 #define PYRO_GPIO_Port GPIOA
-#define LC_SCK_Pin GPIO_PIN_5
-#define LC_SCK_GPIO_Port GPIOA
-#define LC_MISO_Pin GPIO_PIN_6
+#define LC_MISO_Pin GPIO_PIN_5
 #define LC_MISO_GPIO_Port GPIOA
+#define LC_SCK_Pin GPIO_PIN_6
+#define LC_SCK_GPIO_Port GPIOA
 #define LED_Pin GPIO_PIN_12
 #define LED_GPIO_Port GPIOB
 #define TEMP_MISO_Pin GPIO_PIN_14
