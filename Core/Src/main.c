@@ -27,6 +27,13 @@
 #include "stm32f4xx_hal.h"
 #include "hx711.h"
 #include "hx711Config.h"
+#include "pressure.h"
+#include <string.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stm32f4xx_hal_gpio.h>
+//#include "usbd_cdc_if.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -53,11 +60,41 @@ ADC_HandleTypeDef hadc1;
 SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
 
+PCD_HandleTypeDef hpcd_USB_OTG_FS;
+
 /* USER CODE BEGIN PV */
-volatile uint16_t g_pt_raw[6];  // raw ADC results
-//load cell
+// --- Debug globals for CubeMonitor ---
+// Voltage readings (float)
+volatile float dbg_pt_voltage_0;
+volatile float dbg_pt_voltage_1;
+volatile float dbg_pt_voltage_2;
+volatile float dbg_pt_voltage_3;
+volatile float dbg_pt_voltage_4;
+volatile float dbg_pt_voltage_5;
+
+// Pressure readings (float)
+volatile float dbg_pt_psi_0;
+volatile float dbg_pt_psi_1;
+volatile float dbg_pt_psi_2;
+volatile float dbg_pt_psi_3;
+volatile float dbg_pt_psi_4;
+volatile float dbg_pt_psi_5;
+
+// Raw ADC values (uint16)
+volatile uint16_t dbg_pt_raw_0;
+volatile uint16_t dbg_pt_raw_1;
+volatile uint16_t dbg_pt_raw_2;
+volatile uint16_t dbg_pt_raw_3;
+volatile uint16_t dbg_pt_raw_4;
+volatile uint16_t dbg_pt_raw_5;
+
+// Load cell weight (float)
+volatile float dbg_loadcell_weight;
 hx711_t g_loadcell;
-float g_loadcell_weight = 0.0f;
+
+
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -66,13 +103,15 @@ static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USB_OTG_FS_PCD_Init(void);
 /* USER CODE BEGIN PFP */
-static void PT_ScanAll(void);
+
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
 /* USER CODE END 0 */
 
 /**
@@ -83,7 +122,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-	SCB->VTOR = 0x08000000; //when i wrote this, only I and god knew why it worked. now it is only god. -TFA
+
 
 
   /* USER CODE END 1 */
@@ -107,35 +146,73 @@ int main(void)
   MX_SPI2_Init();
   MX_SPI3_Init();
   MX_ADC1_Init();
+  MX_USB_OTG_FS_PCD_Init();
   /* USER CODE BEGIN 2 */
+
+
+
+
+
+
+  PT_Init(&hadc1);
+
+
   //Initializing HX711
 
 
-//  hx711_init(&g_loadcell,
-//             LC_SCK_GPIO_Port,  LC_SCK_Pin,   // PA5 clock out
-//             LC_MISO_GPIO_Port, LC_MISO_Pin); // PA6 data in
+  hx711_init(&g_loadcell,
+             LC_SCK_GPIO_Port,  LC_SCK_Pin,
+             LC_MISO_GPIO_Port, LC_MISO_Pin);
 
+  hx711_tare(&g_loadcell, 10);
 
-  // Perform initial tare (zero load)
-
-
-//  hx711_tare(&g_loadcell, 10);  // average 10 samples
+  hx711_coef_set(&g_loadcell, 1.7625f);
 
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
- while (1)
- {
-	 	PT_ScanAll(); // scan all pressure transducers
-//	    g_loadcell_weight = hx711_weight(&g_loadcell, 5); // average of 5 samples from load cell
-	    HAL_GPIO_TogglePin(GPIOB, LED_Pin);
-	    HAL_Delay(1000);
+
+  while (1)
+  {
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
- }
+	      // --- Pressure transducers ---
+	      PT_ScanAll();
+
+	      // Raw ADC values
+	      dbg_pt_raw_0 = g_pt_raw[0];
+	      dbg_pt_raw_1 = g_pt_raw[1];
+	      dbg_pt_raw_2 = g_pt_raw[2];
+	      dbg_pt_raw_3 = g_pt_raw[3];
+	      dbg_pt_raw_4 = g_pt_raw[4];
+	      dbg_pt_raw_5 = g_pt_raw[5];
+
+	      // Voltages
+	      dbg_pt_voltage_0 = PT_GetVoltage(0);
+	      dbg_pt_voltage_1 = PT_GetVoltage(1);
+	      dbg_pt_voltage_2 = PT_GetVoltage(2);
+	      dbg_pt_voltage_3 = PT_GetVoltage(3);
+	      dbg_pt_voltage_4 = PT_GetVoltage(4);
+	      dbg_pt_voltage_5 = PT_GetVoltage(5);
+
+	      // Pressures
+	      dbg_pt_psi_0 = PT_GetPressure(0);
+	      dbg_pt_psi_1 = PT_GetPressure(1);
+	      dbg_pt_psi_2 = PT_GetPressure(2);
+	      dbg_pt_psi_3 = PT_GetPressure(3);
+	      dbg_pt_psi_4 = PT_GetPressure(4);
+	      dbg_pt_psi_5 = PT_GetPressure(5);
+
+	      // --- Load cell ---
+	      dbg_loadcell_weight = hx711_weight(&g_loadcell, 5);
+	      // --- Blink LED to show loop is running ---
+	      HAL_GPIO_TogglePin(GPIOB, LED_Pin);
+	      HAL_Delay(10);
+
+  }
   /* USER CODE END 3 */
 }
 
@@ -156,10 +233,14 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 12;
+  RCC_OscInitStruct.PLL.PLLN = 72;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 3;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -169,9 +250,9 @@ void SystemClock_Config(void)
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSE;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
@@ -244,12 +325,13 @@ static void MX_SPI2_Init(void)
   /* USER CODE END SPI2_Init 1 */
   /* SPI2 parameter configuration*/
   hspi2.Instance = SPI2;
-  hspi2.Init.Mode = SPI_MODE_SLAVE;
-  hspi2.Init.Direction = SPI_DIRECTION_1LINE;
+  hspi2.Init.Mode = SPI_MODE_MASTER;
+  hspi2.Init.Direction = SPI_DIRECTION_2LINES;
   hspi2.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -284,7 +366,7 @@ static void MX_SPI3_Init(void)
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;
-  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi3.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_256;
   hspi3.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi3.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi3.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -294,7 +376,43 @@ static void MX_SPI3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN SPI3_Init 2 */
+
   /* USER CODE END SPI3_Init 2 */
+
+}
+
+/**
+  * @brief USB_OTG_FS Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USB_OTG_FS_PCD_Init(void)
+{
+
+  /* USER CODE BEGIN USB_OTG_FS_Init 0 */
+
+  /* USER CODE END USB_OTG_FS_Init 0 */
+
+  /* USER CODE BEGIN USB_OTG_FS_Init 1 */
+
+  /* USER CODE END USB_OTG_FS_Init 1 */
+  hpcd_USB_OTG_FS.Instance = USB_OTG_FS;
+  hpcd_USB_OTG_FS.Init.dev_endpoints = 4;
+  hpcd_USB_OTG_FS.Init.speed = PCD_SPEED_FULL;
+  hpcd_USB_OTG_FS.Init.dma_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
+  hpcd_USB_OTG_FS.Init.Sof_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.low_power_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.lpm_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.vbus_sensing_enable = DISABLE;
+  hpcd_USB_OTG_FS.Init.use_dedicated_ep1 = DISABLE;
+  if (HAL_PCD_Init(&hpcd_USB_OTG_FS) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USB_OTG_FS_Init 2 */
+
+  /* USER CODE END USB_OTG_FS_Init 2 */
 
 }
 
@@ -320,13 +438,16 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOC, MULT_S3_Pin|T1_CS_Pin|T2_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_CS_Pin|LC_SCK_Pin|FLASH_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_MISO_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(FLASH_CS_GPIO_Port, FLASH_CS_Pin, GPIO_PIN_SET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pins : MULT_S1_Pin MULT_S2_Pin */
   GPIO_InitStruct.Pin = MULT_S1_Pin|MULT_S2_Pin;
@@ -341,18 +462,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PYRO_Pin LC_CS_Pin LC_SCK_Pin FLASH_CS_Pin */
-  GPIO_InitStruct.Pin = PYRO_Pin|LC_CS_Pin|LC_SCK_Pin|FLASH_CS_Pin;
+  /*Configure GPIO pins : PYRO_Pin LC_MISO_Pin */
+  GPIO_InitStruct.Pin = PYRO_Pin|LC_MISO_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : LC_MISO_Pin */
-  GPIO_InitStruct.Pin = LC_MISO_Pin;
+  /*Configure GPIO pin : LC_SCK_Pin */
+  GPIO_InitStruct.Pin = LC_SCK_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(LC_MISO_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(LC_SCK_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LED_Pin */
   GPIO_InitStruct.Pin = LED_Pin;
@@ -361,11 +482,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LED_GPIO_Port, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : FLASH_CS_Pin */
+  GPIO_InitStruct.Pin = FLASH_CS_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(FLASH_CS_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pin : SD_CS_Pin */
   GPIO_InitStruct.Pin = SD_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(SD_CS_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
@@ -373,69 +501,9 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-//TFA - Check these
-// --- pressure transducer helpers ---
-#define MUX_S1_GPIO  GPIOC
-#define MUX_S1_PIN   GPIO_PIN_0
-#define MUX_S2_GPIO  GPIOC
-#define MUX_S2_PIN   GPIO_PIN_1
-#define MUX_S3_GPIO  GPIOC
-#define MUX_S3_PIN   GPIO_PIN_2
-#define PT_ADC_CH    ADC_CHANNEL_13   // PC3
-static inline void PT_SetMux(uint8_t code)
-{
-    // S1
-    if (code & 0x1)
-    {
-        HAL_GPIO_WritePin(MUX_S1_GPIO, MUX_S1_PIN, GPIO_PIN_SET);
-    }
-    else
-    {
-        HAL_GPIO_WritePin(MUX_S1_GPIO, MUX_S1_PIN, GPIO_PIN_RESET);
-    }
 
-    // S2
-    if (code & 0x2)
-    {
-        HAL_GPIO_WritePin(MUX_S2_GPIO, MUX_S2_PIN, GPIO_PIN_SET);
-    }
-    else
-    {
-        HAL_GPIO_WritePin(MUX_S2_GPIO, MUX_S2_PIN, GPIO_PIN_RESET);
-    }
 
-    // S3
-    if (code & 0x4)
-    {
-        HAL_GPIO_WritePin(MUX_S3_GPIO, MUX_S3_PIN, GPIO_PIN_SET);
-    }
-    else
-    {
-        HAL_GPIO_WritePin(MUX_S3_GPIO, MUX_S3_PIN, GPIO_PIN_RESET);
-    }
-}
-static inline void PT_SettleDelay(void)
-{
- for (volatile int i = 0; i < 400; ++i) __NOP(); // few µs
-}
-static uint16_t PT_ReadADC(void)
-{
- HAL_ADC_Start(&hadc1);
- HAL_ADC_PollForConversion(&hadc1, 10);
- uint16_t val = (uint16_t)HAL_ADC_GetValue(&hadc1);
- HAL_ADC_Stop(&hadc1);
- return val;
-}
-static void PT_ScanAll(void)
-{
- const uint8_t codes[6] = {0b000, 0b001, 0b010, 0b011, 0b100, 0b101};
- for (int i = 0; i < 6; i++) {
-   PT_SetMux(codes[i]);
-   PT_SettleDelay();
-   g_pt_raw[i] = PT_ReadADC();  // raw 0–4095
-   int test = 1;
- }
-}
+
 /* USER CODE END 4 */
 
 /**
