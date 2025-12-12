@@ -67,6 +67,15 @@ extern float hx711_known_weight;
 // Debug calibration helper
 void hx711_calibrate_debug(hx711_t *hx711, float known_weight);
 
+void hx711_calibration_multipoint(
+    hx711_t *hx711,
+    const float *weights,
+    const int32_t *raws,
+    uint16_t n,
+    float *out_coef,
+    int32_t *out_offset
+);
+
 
 //####################################################################################################################
 

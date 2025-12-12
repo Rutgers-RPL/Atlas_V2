@@ -6,7 +6,7 @@ https://www.st.com/en/development-tools/stm32cubemonitor.html
 
 Once downloaded, click top right 3 bars, import, and select the flow JSON stored in this folder. 
 
-Click "Deploy", "Dashboard", and "Start". Logs will be written to C:/users/yourusername/log/some csv file
+Click "Deploy", "Dashboard", and "Start 
 
 VERY IMPORTANT: if changes have been made to ATLAS, or there are otherwise any errors in initial setup, do the following:
 

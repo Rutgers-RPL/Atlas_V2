@@ -188,3 +188,54 @@ void hx711_calibrate_debug(hx711_t *hx711, float known_weight)
   // Step 5: Apply new calibration coefficient
   hx711_coef_set(hx711, hx711_scale_factor);
 }
+
+//chat wrote this ngl LMAO
+//#############################################################################################
+// Multi-point calibration using least-squares regression
+// raw = coef * weight + offset
+//#############################################################################################
+void hx711_calibration_multipoint(
+    hx711_t *hx711,
+    const float *weights,
+    const int32_t *raws,
+    uint16_t n,
+    float *out_coef,
+    int32_t *out_offset
+)
+{
+    if (n < 2)
+        return;
+
+    float sum_w  = 0.0f;
+    float sum_r  = 0.0f;
+    float sum_wr = 0.0f;
+    float sum_w2 = 0.0f;
+
+    for (uint16_t i = 0; i < n; i++)
+    {
+        sum_w  += weights[i];
+        sum_r  += raws[i];
+        sum_wr += weights[i] * raws[i];
+        sum_w2 += weights[i] * weights[i];
+    }
+
+    float denom = n * sum_w2 - sum_w * sum_w;
+    if (denom == 0.0f)
+        return;
+
+    float coef   = (n * sum_wr - sum_w * sum_r) / denom;
+    float offset = (sum_r - coef * sum_w) / n;
+
+    hx711_lock(hx711);
+    hx711->coef   = coef;
+    hx711->offset = (int32_t)offset;
+    hx711_unlock(hx711);
+
+    // Copy results back to main-owned variables
+    if (out_coef)
+        *out_coef = coef;
+    if (out_offset)
+        *out_offset = (int32_t)offset;
+}
+
+

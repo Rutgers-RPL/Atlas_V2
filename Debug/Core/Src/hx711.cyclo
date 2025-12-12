@@ -12,3 +12,4 @@
 ../Core/Src/hx711.c:149:6:hx711_power_down	1
 ../Core/Src/hx711.c:156:6:hx711_power_up	1
 ../Core/Src/hx711.c:170:6:hx711_calibrate_debug	1
+../Core/Src/hx711.c:197:6:hx711_calibration_multipoint	6

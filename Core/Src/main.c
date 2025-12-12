@@ -63,6 +63,9 @@ SPI_HandleTypeDef hspi3;
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
+
+volatile float   dbg_hx711_final_coef   = 0.0f;
+volatile int32_t dbg_hx711_final_offset = 0;
 // --- Debug globals for CubeMonitor ---
 // Voltage readings (float)
 volatile float dbg_pt_voltage_0;
@@ -151,9 +154,6 @@ int main(void)
 
 
 
-
-
-
   PT_Init(&hadc1);
 
 
@@ -166,7 +166,7 @@ int main(void)
 
   hx711_tare(&g_loadcell, 10);
 
-  hx711_coef_set(&g_loadcell, 1.7625f);
+  hx711_coef_set(&g_loadcell, 2010.07996f);
 
 
   /* USER CODE END 2 */
@@ -207,10 +207,10 @@ int main(void)
 	      dbg_pt_psi_5 = PT_GetPressure(5);
 
 	      // --- Load cell ---
-	      dbg_loadcell_weight = hx711_weight(&g_loadcell, 5);
+	      dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
 	      // --- Blink LED to show loop is running ---
-	      HAL_GPIO_TogglePin(GPIOB, LED_Pin);
-	      HAL_Delay(10);
+	      int debugbreak = 1;
+
 
   }
   /* USER CODE END 3 */
