@@ -21,6 +21,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "fatfs.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -28,6 +29,7 @@
 #include "hx711.h"
 #include "hx711Config.h"
 #include "pressure.h"
+#include "structs.h"
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -57,12 +59,19 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
+CRC_HandleTypeDef hcrc;
+
 SPI_HandleTypeDef hspi2;
 SPI_HandleTypeDef hspi3;
+
+UART_HandleTypeDef huart1;
 
 PCD_HandleTypeDef hpcd_USB_OTG_FS;
 
 /* USER CODE BEGIN PV */
+
+telemetry_packet_t g_packet;
+
 
 volatile float   dbg_hx711_final_coef   = 0.0f;
 volatile int32_t dbg_hx711_final_offset = 0;
@@ -107,8 +116,10 @@ static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
-
+uint32_t calculate_crc(const void *data, size_t length);
 
 
 /* USER CODE END PFP */
@@ -150,6 +161,9 @@ int main(void)
   MX_SPI3_Init();
   MX_ADC1_Init();
   MX_USB_OTG_FS_PCD_Init();
+  MX_USART1_UART_Init();
+  MX_CRC_Init();
+  MX_FATFS_Init();
   /* USER CODE BEGIN 2 */
 
 
@@ -209,7 +223,48 @@ int main(void)
 	      // --- Load cell ---
 	      dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
 	      // --- Blink LED to show loop is running ---
+
 	      int debugbreak = 1;
+
+	      // ==========================
+	      // Populate telemetry packet
+	      // ==========================
+	      g_packet.magic   = TELEMETRY_MAGIC;
+	      g_packet.time_us = HAL_GetTick() * 1000;
+
+	      // Raw ADC values
+	      g_packet.pt_raw[0] = dbg_pt_raw_0;
+	      g_packet.pt_raw[1] = dbg_pt_raw_1;
+	      g_packet.pt_raw[2] = dbg_pt_raw_2;
+	      g_packet.pt_raw[3] = dbg_pt_raw_3;
+	      g_packet.pt_raw[4] = dbg_pt_raw_4;
+	      g_packet.pt_raw[5] = dbg_pt_raw_5;
+
+	      // Pressures (PSI)
+	      g_packet.pt_psi[0] = dbg_pt_psi_0;
+	      g_packet.pt_psi[1] = dbg_pt_psi_1;
+	      g_packet.pt_psi[2] = dbg_pt_psi_2;
+	      g_packet.pt_psi[3] = dbg_pt_psi_3;
+	      g_packet.pt_psi[4] = dbg_pt_psi_4;
+	      g_packet.pt_psi[5] = dbg_pt_psi_5;
+
+	      // Load cell
+	      g_packet.loadcell_weight = dbg_loadcell_weight;
+
+	      // Compute CRC over packet EXCLUDING checksum field
+	      g_packet.checksum = calculate_crc(
+	          &g_packet,
+	          sizeof(telemetry_packet_t) - sizeof(uint32_t)
+	      );
+
+
+	      HAL_UART_Transmit(
+	          &huart1,                          // UART connected to radio
+	          (uint8_t *)&g_packet,             // Raw packet bytes
+	          sizeof(telemetry_packet_t),        // Packet length
+	          HAL_MAX_DELAY                     // Block until done
+	      );
+
 
 
   }
@@ -311,6 +366,32 @@ static void MX_ADC1_Init(void)
 }
 
 /**
+  * @brief CRC Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_CRC_Init(void)
+{
+
+  /* USER CODE BEGIN CRC_Init 0 */
+
+  /* USER CODE END CRC_Init 0 */
+
+  /* USER CODE BEGIN CRC_Init 1 */
+
+  /* USER CODE END CRC_Init 1 */
+  hcrc.Instance = CRC;
+  if (HAL_CRC_Init(&hcrc) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN CRC_Init 2 */
+
+  /* USER CODE END CRC_Init 2 */
+
+}
+
+/**
   * @brief SPI2 Initialization Function
   * @param None
   * @retval None
@@ -378,6 +459,39 @@ static void MX_SPI3_Init(void)
   /* USER CODE BEGIN SPI3_Init 2 */
 
   /* USER CODE END SPI3_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
@@ -501,6 +615,17 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+uint32_t calculate_crc(const void *data, size_t length)
+{
+    size_t words = (length + 3) / 4;
+    uint32_t buffer[words];
+
+    memset(buffer, 0, words * 4);
+    memcpy(buffer, data, length);
+
+    return HAL_CRC_Calculate(&hcrc, buffer, words);
+}
+
 
 
 

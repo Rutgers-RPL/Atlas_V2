@@ -19,11 +19,13 @@
 //available at http://elm-chan.org/fsw/ff/ffsample.zip
 //(text at http://elm-chan.org/fsw/ff/00index_e.html)
 
+//This file provides the FatFs driver functions and SPI code required to manage
 //an SPI-connected MMC or compatible SD card with FAT
 
 //It is designed to be wrapped by a cubemx generated user_diskio.c file.
 
-#include "stm32f4xx_hal.h" /* Provide the low-level HAL functions */
+//#include "stm32f3xx_hal.h" /* Provide the low-level HAL functions */
+#include "stm32f4xx_hal.h"
 #include "user_diskio_spi.h"
 
 //Make sure you set #define SD_SPI_HANDLE as some hspix in main.h
@@ -37,8 +39,8 @@ extern SPI_HandleTypeDef SD_SPI_HANDLE;
 #define FCLK_SLOW() { MODIFY_REG(SD_SPI_HANDLE.Instance->CR1, SPI_BAUDRATEPRESCALER_256, SPI_BAUDRATEPRESCALER_128); }	/* Set SCLK = slow, approx 280 KBits/s*/
 #define FCLK_FAST() { MODIFY_REG(SD_SPI_HANDLE.Instance->CR1, SPI_BAUDRATEPRESCALER_256, SPI_BAUDRATEPRESCALER_8); }	/* Set SCLK = fast, approx 4.5 MBits/s */
 
-#define CS_HIGH()	{HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);}
-#define CS_LOW()	{HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);}
+#define CS_HIGH()	{HAL_GPIO_WritePin(FLASH_MOSI_SD_MOSI_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);}
+#define CS_LOW()	{HAL_GPIO_WritePin(FLASH_MOSI_SD_MOSI_GPIO_Port, SD_CS_Pin, GPIO_PIN_RESET);}
 
 /*--------------------------------------------------------------------------
 
@@ -324,13 +326,13 @@ inline DSTATUS USER_SPI_initialize (
 	if (drv != 0) return STA_NOINIT;		/* Supports only drive 0 */
 	//assume SPI already init init_spi();	/* Initialize SPI */
 
-	//if (Stat & STA_NODISK) return Stat;	/* Is card existing in the soket? */
+	if (Stat & STA_NODISK) return Stat;	/* Is card existing in the soket? */
 
 	FCLK_SLOW();
 	for (n = 10; n; n--) xchg_spi(0xFF);	/* Send 80 dummy clocks */
 
 	ty = 0;
-	if (send_cmd(CMD0, 0) == 1) {			/* Put the card SPI/Idle state */ //THIS DID NOT WORK TFA
+	if (send_cmd(CMD0, 0) == 1) {			/* Put the card SPI/Idle state */
 		SPI_Timer_On(1000);					/* Initialization timeout = 1 sec */
 		if (send_cmd(CMD8, 0x1AA) == 1) {	/* SDv2? */
 			for (n = 0; n < 4; n++) ocr[n] = xchg_spi(0xFF);	/* Get 32 bit return value of R7 resp */

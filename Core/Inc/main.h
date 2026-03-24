@@ -91,6 +91,10 @@ void Error_Handler(void);
 #define FLASH_MOSI_SD_MOSI_GPIO_Port GPIOC
 #define SD_CS_Pin GPIO_PIN_2
 #define SD_CS_GPIO_Port GPIOD
+#define RADIO_TX_Pin GPIO_PIN_6
+#define RADIO_TX_GPIO_Port GPIOB
+#define RADIO_RX_Pin GPIO_PIN_7
+#define RADIO_RX_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 #define SD_SPI_HANDLE hspi3
