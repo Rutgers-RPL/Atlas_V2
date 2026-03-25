@@ -1,8 +1,6 @@
-../Core/Src/pressure.c:49:6:PT_Init	1
-../Core/Src/pressure.c:54:6:PT_ScanAll	2
-../Core/Src/pressure.c:72:7:PT_GetPressure	3
-../Core/Src/pressure.c:79:7:PT_GetVoltage	3
-../Core/Src/pressure.c:90:13:PT_SetMux	1
-../Core/Src/pressure.c:102:13:PT_SettleDelay	2
-../Core/Src/pressure.c:108:17:PT_ReadADC	1
-../Core/Src/pressure.c:117:14:PT_AdcToVoltage	1
+../Core/Src/pressure.c:33:6:PT_Init	1
+../Core/Src/pressure.c:38:6:PT_ScanAll	2
+../Core/Src/pressure.c:60:7:PT_GetPressure	3
+../Core/Src/pressure.c:71:13:PT_SetMux	1
+../Core/Src/pressure.c:83:13:PT_SettleDelay	2
+../Core/Src/pressure.c:89:17:PT_ReadADC	1

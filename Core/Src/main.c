@@ -119,7 +119,7 @@ static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
 /* USER CODE BEGIN PFP */
-uint32_t calculate_crc(const void *data, size_t length);
+uint32_t calculate_checksum(const uint8_t *data, size_t length);
 
 
 /* USER CODE END PFP */
@@ -192,83 +192,79 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
-	      // --- Pressure transducers ---
-	      PT_ScanAll();
+	  // --- Pressure transducers ---
+	            PT_ScanAll();
 
-	      // Raw ADC values
-	      dbg_pt_raw_0 = g_pt_raw[0];
-	      dbg_pt_raw_1 = g_pt_raw[1];
-	      dbg_pt_raw_2 = g_pt_raw[2];
-	      dbg_pt_raw_3 = g_pt_raw[3];
-	      dbg_pt_raw_4 = g_pt_raw[4];
-	      dbg_pt_raw_5 = g_pt_raw[5];
+	            // Raw ADC values
+	            dbg_pt_raw_0 = g_pt_raw[0];
+	            dbg_pt_raw_1 = g_pt_raw[1];
+	            dbg_pt_raw_2 = g_pt_raw[2];
+	            dbg_pt_raw_3 = g_pt_raw[3];
+	            dbg_pt_raw_4 = g_pt_raw[4];
+	            dbg_pt_raw_5 = g_pt_raw[5];
 
-	      // Voltages
-	      dbg_pt_voltage_0 = PT_GetVoltage(0);
-	      dbg_pt_voltage_1 = PT_GetVoltage(1);
-	      dbg_pt_voltage_2 = PT_GetVoltage(2);
-	      dbg_pt_voltage_3 = PT_GetVoltage(3);
-	      dbg_pt_voltage_4 = PT_GetVoltage(4);
-	      dbg_pt_voltage_5 = PT_GetVoltage(5);
+	            // Voltages (Commented out: PT_GetVoltage was removed in the linear regression update)
+	            // dbg_pt_voltage_0 = PT_GetVoltage(0);
+	            // dbg_pt_voltage_1 = PT_GetVoltage(1);
+	            // dbg_pt_voltage_2 = PT_GetVoltage(2);
+	            // dbg_pt_voltage_3 = PT_GetVoltage(3);
+	            // dbg_pt_voltage_4 = PT_GetVoltage(4);
+	            // dbg_pt_voltage_5 = PT_GetVoltage(5);
 
-	      // Pressures
-	      dbg_pt_psi_0 = PT_GetPressure(0);
-	      dbg_pt_psi_1 = PT_GetPressure(1);
-	      dbg_pt_psi_2 = PT_GetPressure(2);
-	      dbg_pt_psi_3 = PT_GetPressure(3);
-	      dbg_pt_psi_4 = PT_GetPressure(4);
-	      dbg_pt_psi_5 = PT_GetPressure(5);
+	            // Pressures
+	            dbg_pt_psi_0 = PT_GetPressure(0);
+	            dbg_pt_psi_1 = PT_GetPressure(1);
+	            dbg_pt_psi_2 = PT_GetPressure(2);
+	            dbg_pt_psi_3 = PT_GetPressure(3);
+	            dbg_pt_psi_4 = PT_GetPressure(4);
+	            dbg_pt_psi_5 = PT_GetPressure(5);
 
-	      // --- Load cell ---
-	      dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
-	      // --- Blink LED to show loop is running ---
+	            // --- Load cell ---
+	            dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
+	            // --- Blink LED to show loop is running ---
 
-	      int debugbreak = 1;
+	            int debugbreak = 1;
 
-	      // ==========================
-	      // Populate telemetry packet
-	      // ==========================
-	      g_packet.magic   = TELEMETRY_MAGIC;
-	      g_packet.time_us = HAL_GetTick() * 1000;
+	            // ==========================
+	            // Populate telemetry packet
+	            // ==========================
+	            g_packet.magic   = TELEMETRY_MAGIC;
+	            g_packet.time_us = HAL_GetTick() * 1000;
 
-	      // Raw ADC values
-	      g_packet.pt_raw[0] = dbg_pt_raw_0;
-	      g_packet.pt_raw[1] = dbg_pt_raw_1;
-	      g_packet.pt_raw[2] = dbg_pt_raw_2;
-	      g_packet.pt_raw[3] = dbg_pt_raw_3;
-	      g_packet.pt_raw[4] = dbg_pt_raw_4;
-	      g_packet.pt_raw[5] = dbg_pt_raw_5;
+	            // Raw ADC values
+	            g_packet.pt_raw[0] = dbg_pt_raw_0;
+	            g_packet.pt_raw[1] = dbg_pt_raw_1;
+	            g_packet.pt_raw[2] = dbg_pt_raw_2;
+	            g_packet.pt_raw[3] = dbg_pt_raw_3;
+	            g_packet.pt_raw[4] = dbg_pt_raw_4;
+	            g_packet.pt_raw[5] = dbg_pt_raw_5;
 
-	      // Pressures (PSI)
-	      g_packet.pt_psi[0] = dbg_pt_psi_0;
-	      g_packet.pt_psi[1] = dbg_pt_psi_1;
-	      g_packet.pt_psi[2] = dbg_pt_psi_2;
-	      g_packet.pt_psi[3] = dbg_pt_psi_3;
-	      g_packet.pt_psi[4] = dbg_pt_psi_4;
-	      g_packet.pt_psi[5] = dbg_pt_psi_5;
+	            // Pressures (PSI)
+	            g_packet.pt_psi[0] = dbg_pt_psi_0;
+	            g_packet.pt_psi[1] = dbg_pt_psi_1;
+	            g_packet.pt_psi[2] = dbg_pt_psi_2;
+	            g_packet.pt_psi[3] = dbg_pt_psi_3;
+	            g_packet.pt_psi[4] = dbg_pt_psi_4;
+	            g_packet.pt_psi[5] = dbg_pt_psi_5;
 
-	      // Load cell
-	      g_packet.loadcell_weight = dbg_loadcell_weight;
+	            // Load cell
+	            g_packet.loadcell_weight = dbg_loadcell_weight;
 
-	      // Compute CRC over packet EXCLUDING checksum field
-	      g_packet.checksum = calculate_crc(
-	          &g_packet,
-	          sizeof(telemetry_packet_t) - sizeof(uint32_t)
-	      );
+	            // Compute CRC over packet EXCLUDING the 2-byte magic and 4-byte checksum
+	            g_packet.checksum = calculate_checksum(
+	                ((const uint8_t *)&g_packet) + sizeof(uint16_t), // Start reading after the magic number
+	                sizeof(telemetry_packet_t) - 6                   // Length minus magic (2) and checksum (4)
+	            );
 
+	            HAL_UART_Transmit(
+	                &huart1,                          // UART connected to radio
+	                (uint8_t *)&g_packet,             // Raw packet bytes
+	                sizeof(telemetry_packet_t),       // Packet length
+	                HAL_MAX_DELAY                     // Block until done
+	            );
 
-	      HAL_UART_Transmit(
-	          &huart1,                          // UART connected to radio
-	          (uint8_t *)&g_packet,             // Raw packet bytes
-	          sizeof(telemetry_packet_t),        // Packet length
-	          HAL_MAX_DELAY                     // Block until done
-	      );
-
-
-
-  }
-  /* USER CODE END 3 */
+	    }
+	    /* USER CODE END 3 */
 }
 
 /**
@@ -615,18 +611,20 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-uint32_t calculate_crc(const void *data, size_t length)
+
+uint32_t calculate_checksum(const uint8_t *data, size_t length)
 {
-    size_t words = (length + 3) / 4;
-    uint32_t buffer[words];
+    // Pad to a multiple of 4 bytes using bitwise masking
+    size_t padded_length = (length + 3) & ~0x03;
 
-    memset(buffer, 0, words * 4);
-    memcpy(buffer, data, length);
+    // Create padded buffer (Note: This is still a VLA)
+    uint8_t pad_buffer[padded_length];
+    memset(pad_buffer, 0, padded_length);
+    memcpy(pad_buffer, data, length);
 
-    return HAL_CRC_Calculate(&hcrc, buffer, words);
+    // Cast the byte buffer to a 32-bit pointer for the STM32F4 hardware
+    return HAL_CRC_Calculate(&hcrc, (uint32_t *)pad_buffer, padded_length / 4);
 }
-
-
 
 
 /* USER CODE END 4 */
