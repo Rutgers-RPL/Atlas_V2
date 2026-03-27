@@ -68,16 +68,65 @@ float PT_GetPressure(int index)
  * INTERNAL HELPER FUNCTIONS
  * =========================================================== */
 
-static void PT_SetMux(uint8_t code)
+//static void PT_SetMux(uint8_t code)
+//{
+//    HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin,
+//                      (code & 0x1) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+//
+//    HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin,
+//                      (code & 0x2) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+//
+//    HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin,
+//                      (code & 0x4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+//}
+
+void PT_SetMux(uint8_t code)
 {
-    HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin,
-                      (code & 0x1) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+    switch (code)
+    {
+        case 0: // Binary 000
+            HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin, GPIO_PIN_RESET);
+            break;
 
-    HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin,
-                      (code & 0x2) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        case 1: // Binary 001
+            HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin, GPIO_PIN_RESET);
+            break;
 
-    HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin,
-                      (code & 0x4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
+        case 2: // Binary 010
+            HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin, GPIO_PIN_RESET);
+            break;
+
+        case 3: // Binary 011
+            HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin, GPIO_PIN_RESET);
+            break;
+
+        case 4: // Binary 100
+            HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin, GPIO_PIN_SET);
+            break;
+
+        case 5: // Binary 101
+            HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin, GPIO_PIN_SET);
+            HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin, GPIO_PIN_SET);
+            break;
+
+        default:
+            // Optional: Set all LOW or HIGH if code is out of range (0-5)
+            HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin, GPIO_PIN_RESET);
+            HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin, GPIO_PIN_RESET);
+            break;
+    }
 }
 
 static void PT_SettleDelay(void)

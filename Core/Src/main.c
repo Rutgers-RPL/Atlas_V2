@@ -114,10 +114,10 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_SPI2_Init(void);
 static void MX_SPI3_Init(void);
-static void MX_ADC1_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_CRC_Init(void);
+static void MX_USART1_UART_Init(void);
+static void MX_ADC1_Init(void);
 /* USER CODE BEGIN PFP */
 uint32_t calculate_checksum(const uint8_t *data, size_t length);
 
@@ -159,16 +159,18 @@ int main(void)
   MX_GPIO_Init();
   MX_SPI2_Init();
   MX_SPI3_Init();
-  MX_ADC1_Init();
   MX_USB_OTG_FS_PCD_Init();
-  MX_USART1_UART_Init();
   MX_CRC_Init();
   MX_FATFS_Init();
+  MX_USART1_UART_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
 
+  //temp
 
 
   PT_Init(&hadc1);
+
 
 
   //Initializing HX711
@@ -190,11 +192,12 @@ int main(void)
 
   while (1)
   {
-    /* USER CODE END WHILE */
+
+
+
 
 	  // --- Pressure transducers ---
 	            PT_ScanAll();
-
 	            // Raw ADC values
 	            dbg_pt_raw_0 = g_pt_raw[0];
 	            dbg_pt_raw_1 = g_pt_raw[1];
@@ -202,14 +205,6 @@ int main(void)
 	            dbg_pt_raw_3 = g_pt_raw[3];
 	            dbg_pt_raw_4 = g_pt_raw[4];
 	            dbg_pt_raw_5 = g_pt_raw[5];
-
-	            // Voltages (Commented out: PT_GetVoltage was removed in the linear regression update)
-	            // dbg_pt_voltage_0 = PT_GetVoltage(0);
-	            // dbg_pt_voltage_1 = PT_GetVoltage(1);
-	            // dbg_pt_voltage_2 = PT_GetVoltage(2);
-	            // dbg_pt_voltage_3 = PT_GetVoltage(3);
-	            // dbg_pt_voltage_4 = PT_GetVoltage(4);
-	            // dbg_pt_voltage_5 = PT_GetVoltage(5);
 
 	            // Pressures
 	            dbg_pt_psi_0 = PT_GetPressure(0);
@@ -223,7 +218,6 @@ int main(void)
 	            dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
 	            // --- Blink LED to show loop is running ---
 
-	            int debugbreak = 1;
 
 	            // ==========================
 	            // Populate telemetry packet
@@ -251,20 +245,24 @@ int main(void)
 	            g_packet.loadcell_weight = dbg_loadcell_weight;
 
 	            // Compute CRC over packet EXCLUDING the 2-byte magic and 4-byte checksum
-	            g_packet.checksum = calculate_checksum(
-	                ((const uint8_t *)&g_packet) + sizeof(uint16_t), // Start reading after the magic number
-	                sizeof(telemetry_packet_t) - 6                   // Length minus magic (2) and checksum (4)
-	            );
+//	            g_packet.checksum = calculate_checksum(
+//	                ((const uint8_t *)&g_packet) + sizeof(uint16_t), // Start reading after the magic number
+//	                sizeof(telemetry_packet_t) - 6                   // Length minus magic (2) and checksum (4)
+//	            );
+//
+//	            HAL_UART_Transmit(
+//	                &huart1,                          // UART connected to radio
+//	                (uint8_t *)&g_packet,             // Raw packet bytes
+//	                sizeof(telemetry_packet_t),       // Packet length
+//	                HAL_MAX_DELAY                     // Block until done
+//	            );
 
-	            HAL_UART_Transmit(
-	                &huart1,                          // UART connected to radio
-	                (uint8_t *)&g_packet,             // Raw packet bytes
-	                sizeof(telemetry_packet_t),       // Packet length
-	                HAL_MAX_DELAY                     // Block until done
-	            );
 
-	    }
-	    /* USER CODE END 3 */
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
 }
 
 /**
@@ -321,11 +319,13 @@ static void MX_ADC1_Init(void)
 {
 
   /* USER CODE BEGIN ADC1_Init 0 */
+
   /* USER CODE END ADC1_Init 0 */
 
   ADC_ChannelConfTypeDef sConfig = {0};
 
   /* USER CODE BEGIN ADC1_Init 1 */
+
   /* USER CODE END ADC1_Init 1 */
 
   /** Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
@@ -357,6 +357,7 @@ static void MX_ADC1_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN ADC1_Init 2 */
+
   /* USER CODE END ADC1_Init 2 */
 
 }
@@ -545,7 +546,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, MULT_S3_Pin|T1_CS_Pin|T2_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, MULT_S1_Pin|MULT_S2_Pin|MULT_S3_Pin|T1_CS_Pin
+                          |T2_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_MISO_Pin, GPIO_PIN_RESET);
@@ -559,14 +561,10 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(SD_CS_GPIO_Port, SD_CS_Pin, GPIO_PIN_SET);
 
-  /*Configure GPIO pins : MULT_S1_Pin MULT_S2_Pin */
-  GPIO_InitStruct.Pin = MULT_S1_Pin|MULT_S2_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-  /*Configure GPIO pins : MULT_S3_Pin T1_CS_Pin T2_CS_Pin */
-  GPIO_InitStruct.Pin = MULT_S3_Pin|T1_CS_Pin|T2_CS_Pin;
+  /*Configure GPIO pins : MULT_S1_Pin MULT_S2_Pin MULT_S3_Pin T1_CS_Pin
+                           T2_CS_Pin */
+  GPIO_InitStruct.Pin = MULT_S1_Pin|MULT_S2_Pin|MULT_S3_Pin|T1_CS_Pin
+                          |T2_CS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
