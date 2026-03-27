@@ -157,12 +157,14 @@ int main(void)
   PT_Init(&hadc1);
 
 
-  //Initializing HX711 domer
+  //Initializing HX711
+
+
   hx711_init(&g_loadcell,
              LC_SCK_GPIO_Port,  LC_SCK_Pin,
              LC_MISO_GPIO_Port, LC_MISO_Pin);
 
-  hx711_tare(&g_loadcell, 1);
+  hx711_tare(&g_loadcell, 10);
 
   hx711_coef_set(&g_loadcell, 2010.07996f);
 
@@ -205,13 +207,9 @@ int main(void)
 	      dbg_pt_psi_5 = PT_GetPressure(5);
 
 	      // --- Load cell ---
-	      if (HAL_GPIO_ReadPin(LC_MISO_GPIO_Port, LC_MISO_Pin) == GPIO_PIN_RESET)
-	      {
-	          dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
-	      }
+	      dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
 	      // --- Blink LED to show loop is running ---
-	      //int debugbreak = 1;
-
+	      int debugbreak = 1;
 
 
   }
