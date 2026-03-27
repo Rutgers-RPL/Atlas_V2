@@ -60,8 +60,8 @@ all: main-build
 main-build: Atlas_V2.elf secondary-outputs
 
 # Tool invocations
-Atlas_V2.elf Atlas_V2.map: $(OBJS) $(USER_OBJS) C:\Users\toabb\STM32CubeIDE\workspace_1.19.0\Atlas_V2\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "Atlas_V2.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\toabb\STM32CubeIDE\workspace_1.19.0\Atlas_V2\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Atlas_V2.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+Atlas_V2.elf Atlas_V2.map: $(OBJS) $(USER_OBJS) C:\Users\matth\STM32CubeIDE\workspace_1.19.0\Atlas_V2\STM32F411RETX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "Atlas_V2.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"C:\Users\matth\STM32CubeIDE\workspace_1.19.0\Atlas_V2\STM32F411RETX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Atlas_V2.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

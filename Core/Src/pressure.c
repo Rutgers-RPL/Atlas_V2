@@ -59,7 +59,7 @@ void PT_ScanAll(void)
     for (int i = 0; i < PT_COUNT; i++)
     {
         PT_SetMux(codes[i]);
-        PT_SettleDelay();
+        //PT_SettleDelay();
 
         uint16_t raw = PT_ReadADC();
         g_pt_raw[i] = raw;
