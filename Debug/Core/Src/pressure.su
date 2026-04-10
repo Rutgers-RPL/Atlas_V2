@@ -1,6 +1,6 @@
-../Core/Src/pressure.c:33:6:PT_Init	16	static
-../Core/Src/pressure.c:38:6:PT_ScanAll	24	static
-../Core/Src/pressure.c:60:7:PT_GetPressure	16	static
-../Core/Src/pressure.c:83:6:PT_SetMux	16	static
-../Core/Src/pressure.c:132:13:PT_SettleDelay	16	static,ignoring_inline_asm
-../Core/Src/pressure.c:138:17:PT_ReadADC	16	static
+../Core/Src/pressure.c:38:6:PT_Init	16	static
+../Core/Src/pressure.c:43:6:PT_ScanAll	32	static
+../Core/Src/pressure.c:68:7:PT_GetPressure	16	static
+../Core/Src/pressure.c:79:6:PT_SetMux	16	static
+../Core/Src/pressure.c:128:13:PT_SettleDelay	16	static,ignoring_inline_asm
+../Core/Src/pressure.c:134:17:PT_ReadADC	16	static

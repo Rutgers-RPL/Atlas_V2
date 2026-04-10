@@ -245,17 +245,17 @@ int main(void)
 	            g_packet.loadcell_weight = dbg_loadcell_weight;
 
 	            // Compute CRC over packet EXCLUDING the 2-byte magic and 4-byte checksum
-//	            g_packet.checksum = calculate_checksum(
-//	                ((const uint8_t *)&g_packet) + sizeof(uint16_t), // Start reading after the magic number
-//	                sizeof(telemetry_packet_t) - 6                   // Length minus magic (2) and checksum (4)
-//	            );
-//
-//	            HAL_UART_Transmit(
-//	                &huart1,                          // UART connected to radio
-//	                (uint8_t *)&g_packet,             // Raw packet bytes
-//	                sizeof(telemetry_packet_t),       // Packet length
-//	                HAL_MAX_DELAY                     // Block until done
-//	            );
+	            g_packet.checksum = calculate_checksum(
+	                ((const uint8_t *)&g_packet) + sizeof(uint16_t), // Start reading after the magic number
+	                sizeof(telemetry_packet_t) - 6                   // Length minus magic (2) and checksum (4)
+	            );
+
+	            HAL_UART_Transmit(
+	                &huart1,                          // UART connected to radio
+	                (uint8_t *)&g_packet,             // Raw packet bytes
+	                sizeof(telemetry_packet_t),       // Packet length
+	                HAL_MAX_DELAY                     // Block until done
+	            );
 
 
     /* USER CODE END WHILE */

@@ -4,11 +4,16 @@
 /* ===========================================================
  * CALIBRATION CONSTANTS
  * ===========================================================
- * Calculated via 8-point linear regression.
- * Equation: PSI = (m * Raw_ADC) + b
+ * Derived from Kulite Calibration Certificate (8864-11-799)
+ * Formula: Pressure (psiA) = (Output Voltage (mV) - 224.94 mV) / 2.376 (mV/psiA)
  */
-static const float g_pt_m_reg = 0.402096f;   // Calculated Slope
-static const float g_pt_b_reg = -328.4047f;  // Calculated Y-Intercept
+static const float g_pt_sensitivity = 2.376f;  // mV/psiA
+static const float g_pt_zero_offset = 224.94f; // mV
+
+/* ADC Conversion Constants */
+// Adjust ADC_VREF_MV if using a 5V reference (5000.0f) or if a voltage divider is present
+static const float ADC_VREF_MV = 3300.0f;      // Standard STM32 3.3V reference in millivolts
+static const float ADC_MAX_RAW = 4095.0f;      // 12-bit ADC maximum raw value
 
 /* ===========================================================
  * INTERNAL STATE
@@ -52,8 +57,11 @@ void PT_ScanAll(void)
         uint16_t raw = PT_ReadADC();
         g_pt_raw[i] = raw;
 
-        // 4. Apply linear regression mapping (Raw ADC -> PSI)
-        g_pt_pressure[i] = (g_pt_m_reg * (float)raw) + g_pt_b_reg;
+        // 4. Convert the raw ADC value to millivolts
+        float voltage_mv = ((float)raw / ADC_MAX_RAW) * ADC_VREF_MV;
+
+        // 5. Apply Kulite calibration mapping (mV -> psiA)
+        g_pt_pressure[i] = (voltage_mv - g_pt_zero_offset) / g_pt_sensitivity;
     }
 }
 
@@ -67,18 +75,6 @@ float PT_GetPressure(int index)
 /* ===========================================================
  * INTERNAL HELPER FUNCTIONS
  * =========================================================== */
-
-//static void PT_SetMux(uint8_t code)
-//{
-//    HAL_GPIO_WritePin(MULT_S1_GPIO_Port, MULT_S1_Pin,
-//                      (code & 0x1) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-//
-//    HAL_GPIO_WritePin(MULT_S2_GPIO_Port, MULT_S2_Pin,
-//                      (code & 0x2) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-//
-//    HAL_GPIO_WritePin(MULT_S3_GPIO_Port, MULT_S3_Pin,
-//                      (code & 0x4) ? GPIO_PIN_SET : GPIO_PIN_RESET);
-//}
 
 void PT_SetMux(uint8_t code)
 {
