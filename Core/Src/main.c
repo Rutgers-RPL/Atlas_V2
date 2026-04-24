@@ -30,6 +30,7 @@
 #include "hx711Config.h"
 #include "pressure.h"
 #include "structs.h"
+#include "MAX31855.h"
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -103,6 +104,12 @@ volatile uint16_t dbg_pt_raw_5;
 // Load cell weight (float)
 volatile float dbg_loadcell_weight;
 hx711_t g_loadcell;
+
+// Thermocouples
+MAX31855_StateHandle g_tc1;
+MAX31855_StateHandle g_tc2;
+volatile float dbg_tc1_temp;
+volatile float dbg_tc2_temp;
 
 
 
@@ -184,6 +191,8 @@ int main(void)
 
   hx711_coef_set(&g_loadcell, 2010.07996f);
 
+  MAX31855_Init(&g_tc1, &hspi2, T1_CS_GPIO_Port, T1_CS_Pin);
+  MAX31855_Init(&g_tc2, &hspi2, T2_CS_GPIO_Port, T2_CS_Pin);
 
   /* USER CODE END 2 */
 
@@ -216,8 +225,12 @@ int main(void)
 
 	            // --- Load cell ---
 	            dbg_loadcell_weight = hx711_weight(&g_loadcell, 1);
-	            // --- Blink LED to show loop is running ---
 
+	            // --- Thermocouples ---
+	            MAX31855_ReadData(&g_tc1);
+	            MAX31855_ReadData(&g_tc2);
+	            dbg_tc1_temp = MAX31855_GetTemperature(&g_tc1);
+	            dbg_tc2_temp = MAX31855_GetTemperature(&g_tc2);
 
 	            // ==========================
 	            // Populate telemetry packet
@@ -244,10 +257,16 @@ int main(void)
 	            // Load cell
 	            g_packet.loadcell_weight = dbg_loadcell_weight;
 
+	            // Thermocouples
+	            g_packet.tc_temp[0]  = dbg_tc1_temp;
+	            g_packet.tc_temp[1]  = dbg_tc2_temp;
+	            g_packet.tc_fault[0] = MAX31855_GetFault(&g_tc1);
+	            g_packet.tc_fault[1] = MAX31855_GetFault(&g_tc2);
+
 	            // Compute CRC over packet EXCLUDING the 2-byte magic and 4-byte checksum
 	            g_packet.checksum = calculate_checksum(
-	                ((const uint8_t *)&g_packet) + sizeof(uint16_t), // Start reading after the magic number
-	                sizeof(telemetry_packet_t) - 6                   // Length minus magic (2) and checksum (4)
+	                ((const uint8_t *)&g_packet) + sizeof(uint16_t),
+	                sizeof(telemetry_packet_t) - sizeof(uint16_t) - sizeof(uint32_t)
 	            );
 
 	            HAL_UART_Transmit(
@@ -409,7 +428,7 @@ static void MX_SPI2_Init(void)
   hspi2.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi2.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi2.Init.NSS = SPI_NSS_SOFT;
-  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_4;
   hspi2.Init.FirstBit = SPI_FIRSTBIT_MSB;
   hspi2.Init.TIMode = SPI_TIMODE_DISABLE;
   hspi2.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
@@ -546,14 +565,16 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, MULT_S1_Pin|MULT_S2_Pin|MULT_S3_Pin|T1_CS_Pin
-                          |T2_CS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, MULT_S1_Pin|MULT_S2_Pin|MULT_S3_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, PYRO_Pin|LC_MISO_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, T1_CS_Pin|T2_CS_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(FLASH_CS_GPIO_Port, FLASH_CS_Pin, GPIO_PIN_SET);
